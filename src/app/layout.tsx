@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AppSidebar from "@/components/sidebar/sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import AppHeader from "@/components/header/header";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
   title: "T3 Clone",
@@ -12,8 +20,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body>
+          <SidebarProvider>
+            <AppSidebar />
+            <AppHeader />
+            <SidebarInset className="bg-white  rounded-lg shadow-sm">
+              <main className="h-full bg-[#FAF3FA]">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
