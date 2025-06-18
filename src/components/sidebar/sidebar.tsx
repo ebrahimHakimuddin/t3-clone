@@ -1,5 +1,5 @@
 "use client";
-import { LogIn, LogOut, Search, Settings, SquarePen } from "lucide-react";
+import { LogIn, LogOut, SquarePen } from "lucide-react";
 import {
   SidebarContent,
   SidebarGroup,
@@ -127,7 +127,7 @@ export default function AppSidebar() {
                 </Button>
               </Link>
             </div>
-            <div className="px-2 py-2">
+            {/* <div className="px-2 py-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -136,7 +136,7 @@ export default function AppSidebar() {
                   className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:border-purple-300"
                 />
               </div>
-            </div>
+            </div> */}
           </>
         )}
       </SidebarHeader>
@@ -169,7 +169,7 @@ export default function AppSidebar() {
       <SidebarFooter>
         {isMobile && (
           <>
-            <div className="px-2 py-2">
+            {/* <div className="px-2 py-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -178,7 +178,7 @@ export default function AppSidebar() {
                   className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:border-purple-300"
                 />
               </div>
-            </div>
+            </div> */}
             <div className="flex gap-2 p-1">
               <Link href={"/"}>
                 <Button
@@ -204,14 +204,15 @@ export default function AppSidebar() {
               </Unauthenticated>
 
               <Authenticated>
-                <Link
+                {/* <Link
                   href="/settings"
                   className="flex-1 hover:bg-accent rounded-lg"
+          
                 >
-                  <div className="flex justify-center items-center bg-[#FAF3FA] rounded-lg hover:cursor-pointer h-10">
+                  <div className="flex  justify-center items-center bg-[#FAF3FA] rounded-lg hover:cursor-pointer h-10">
                     <Settings className="h-4 w-4" />
                   </div>
-                </Link>
+                </Link> */}
                 <SignOutButton>
                   <div className="flex-1 hover:bg-accent rounded-lg">
                     <div className="flex justify-center bg-[#FAF3FA] rounded-lg hover:cursor-pointer items-center gap-2 h-10">
@@ -250,12 +251,12 @@ export default function AppSidebar() {
                       <LogOut className=" h-4 w-4" /> Sign Out
                     </div>
                   </SignOutButton>
-                  <Link
+                  {/* <Link
                     href="/settings"
                     className="flex items-center gap-2 hover:bg-background rounded-lg px-4 py-2 cursor-pointer"
                   >
                     <Settings className="h-4 w-4" /> Settings
-                  </Link>
+                  </Link> */}
                 </PopoverContent>
               </Popover>
             </Authenticated>
