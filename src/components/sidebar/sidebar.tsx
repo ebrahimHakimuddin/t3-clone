@@ -6,40 +6,109 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   Sidebar,
   SidebarTrigger,
   useSidebar,
   SidebarHeader,
   SidebarFooter,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from "../ui/sidebar";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignOutButton,
-  useUser,
-} from "@clerk/nextjs";
+import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Avatar, AvatarImage } from "../ui/avatar";
-import { PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Popover } from "../ui/popover";
-import { ResizablePanel } from "../ui/resizable";
+import {
+  Authenticated,
+  Unauthenticated,
+  useConvexAuth,
+  useQuery,
+} from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { makeSideBarItems } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
 export default function AppSidebar() {
   const { user } = useUser();
-  const { open, isMobile } = useSidebar();
-  const items = [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-    },
+  const { isAuthenticated } = useConvexAuth();
+  const { open, isMobile, setOpenMobile } = useSidebar();
+  const path = usePathname();
+  const data = useQuery(api.chat.getUserChats);
+
+  type SidebarMenuItem = {
+    title: string;
+    url: string;
+    creationTime: Date;
+  };
+
+  // Function to get relative time label
+  const getRelativeTimeLabel = (date: Date): string => {
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInDays === 0) {
+      return "Today";
+    } else if (diffInDays === 1) {
+      return "Yesterday";
+    } else if (diffInDays <= 7) {
+      return "This Week";
+    } else if (diffInDays <= 30) {
+      return "This Month";
+    } else {
+      return "Older";
+    }
+  };
+
+  const groupItemsByTime = (items: SidebarMenuItem[]) => {
+    const groups: { [key: string]: SidebarMenuItem[] } = {};
+
+    items.forEach((item) => {
+      const label = getRelativeTimeLabel(item.creationTime);
+      if (!groups[label]) {
+        groups[label] = [];
+      }
+      groups[label].push(item);
+    });
+
+    // Sort items within each group by creation time (newest first for desktop, oldest first for mobile)
+    Object.keys(groups).forEach((key) => {
+      groups[key].sort((a, b) => {
+        if (isMobile) {
+          return a.creationTime.getTime() - b.creationTime.getTime(); // oldest first
+        } else {
+          return b.creationTime.getTime() - a.creationTime.getTime(); // newest first
+        }
+      });
+    });
+
+    return groups;
+  };
+
+  let items: SidebarMenuItem[] = [];
+  if (isAuthenticated) {
+    items = data ? makeSideBarItems(data) : [];
+  }
+
+  const groupedItems = groupItemsByTime(items);
+
+  // Define the order of time groups
+  const timeGroupOrder = [
+    "Today",
+    "Yesterday",
+    "This Week",
+    "This Month",
+    "Older",
   ];
-  console.log(user);
+
+  // Sort groups by time order, but reverse for mobile to show most recent at bottom
+  const sortedGroups = timeGroupOrder.filter((group) => groupedItems[group]);
+  const finalGroupOrder = isMobile ? sortedGroups.reverse() : sortedGroups;
+
   return (
-    <Sidebar variant="inset">
+    <Sidebar variant="floating">
       <SidebarHeader>
         <div className="flex justify-center items-center">
           <div>{open && <SidebarTrigger />}</div>
@@ -71,23 +140,31 @@ export default function AppSidebar() {
           </>
         )}
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>{}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <Link href={item.url} passHref legacyBehavior>
-                    <SidebarMenuButton asChild>
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className={isMobile ? "flex flex-col-reverse" : ""}>
+        {finalGroupOrder.map((groupLabel, index) => (
+          <SidebarGroup key={index}>
+            <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {groupedItems[groupLabel].map((item, index) => (
+                  <SidebarMenuItem key={`${groupLabel}-${index}`}>
+                    <Link href={item.url} passHref>
+                      <SidebarMenuButton
+                        isActive={item.url === path}
+                        asChild
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false);
+                        }}
+                      >
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
       <SidebarFooter>
         {isMobile && (
@@ -104,14 +181,19 @@ export default function AppSidebar() {
             </div>
             <div className="flex gap-2 p-1">
               <Link href={"/"}>
-                <Button className="flex-1 bg-[#A5406D] hover:bg-[#D56798] hover:cursor-pointer text-white rounded-lg h-10">
+                <Button
+                  className="flex-1 bg-[#A5406D] hover:bg-[#D56798] hover:cursor-pointer text-white rounded-lg h-10"
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                >
                   <div className="flex justify-center items-center gap-2">
                     New Chat
                     <SquarePen className="h-4 w-4" />
                   </div>
                 </Button>
               </Link>
-              <SignedOut>
+              <Unauthenticated>
                 <SignInButton>
                   <div className="flex-1 hover:bg-accent rounded-lg">
                     <div className="flex justify-center bg-[#FAF3FA] rounded-lg hover:cursor-pointer items-center gap-2 h-10">
@@ -119,9 +201,9 @@ export default function AppSidebar() {
                     </div>
                   </div>
                 </SignInButton>
-              </SignedOut>
+              </Unauthenticated>
 
-              <SignedIn>
+              <Authenticated>
                 <Link
                   href="/settings"
                   className="flex-1 hover:bg-accent rounded-lg"
@@ -137,20 +219,20 @@ export default function AppSidebar() {
                     </div>
                   </div>
                 </SignOutButton>
-              </SignedIn>
+              </Authenticated>
             </div>
           </>
         )}
         {!isMobile && (
           <div className="flex justify-center items-center gap-2 p-3 hover:bg-accent hover:cursor-pointer rounded-lg">
-            <SignedOut>
+            <Unauthenticated>
               <SignInButton>
                 <div className="flex items-center gap-2  rounded-lg px-4 py-2 cursor-pointer">
                   <LogIn className="h-4 w-4" /> Sign In
                 </div>
               </SignInButton>
-            </SignedOut>
-            <SignedIn>
+            </Unauthenticated>
+            <Authenticated>
               <Popover>
                 <PopoverTrigger className="hover:bg-accent hover:cursor-pointer rounded-lg flex items-center gap-2">
                   <Avatar>
@@ -161,7 +243,7 @@ export default function AppSidebar() {
                 <PopoverContent
                   side="top"
                   align="center"
-                  className="my-5 p-5 w-50 bg-accent  flex flex-col rounded-lg shadow-lg "
+                  className="my-5 p-5 w-50 bg-accent text-sidebar-foreground  flex flex-col rounded-lg shadow-lg "
                 >
                   <SignOutButton>
                     <div className="flex items-center gap-2 hover:bg-background rounded-lg px-4 py-2 cursor-pointer">
@@ -176,7 +258,7 @@ export default function AppSidebar() {
                   </Link>
                 </PopoverContent>
               </Popover>
-            </SignedIn>
+            </Authenticated>
           </div>
         )}
       </SidebarFooter>

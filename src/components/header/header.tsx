@@ -9,10 +9,8 @@ export default function AppHeader() {
   const { open, isMobile } = useSidebar();
 
   return (
-    <header
-      className={`fixed z-50 ${isMobile ? "bottom-4 left-4" : "top-4 left-4"}`}
-    >
-      {(!open || isMobile) && (
+    <header className={`fixed z-50 top-4 left-4`}>
+      {!open && !isMobile && (
         <div className="w-fit h-fit bg-background border border-border rounded-md shadow-md hover:shadow-lg transition-shadow flex items-center p-1">
           <SidebarTrigger />
           <div className="h-6 w-px bg-border mx-2" />

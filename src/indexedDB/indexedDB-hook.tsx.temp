@@ -1,0 +1,107 @@
+import { useState, useEffect } from "react";
+import {
+  chatStore,
+  type Chat,
+  type ChatHistory,
+  initializeChatStore,
+} from "@/indexedDB/indexedDB";
+
+export const useChatStore = () => {
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeChatStore();
+        setIsInitialized(true);
+        await loadChats();
+      } catch (error) {
+        console.error("Failed to initialize chat store:", error);
+      }
+    };
+
+    init();
+  }, []);
+
+  const loadChats = async () => {
+    try {
+      const allChats = await chatStore.getAllChats();
+      setChats(allChats);
+    } catch (error) {
+      console.error("Failed to load chats:", error);
+    }
+  };
+
+  const createChat = async (
+    chatName: string,
+    authorId: string
+  ): Promise<string | null> => {
+    try {
+      const chatId = crypto.randomUUID();
+      const chat: Chat = {
+        chatId,
+        chatName,
+        authorId,
+        _creationTime: new Date().getTime(),
+      };
+
+      await chatStore.createChat(chat);
+      await loadChats();
+      return chatId;
+    } catch (error) {
+      console.error("Failed to create chat:", error);
+      return null;
+    }
+  };
+
+  const deleteChat = async (chatId: string): Promise<boolean> => {
+    try {
+      await chatStore.deleteChat(chatId);
+      await loadChats();
+      return true;
+    } catch (error) {
+      console.error("Failed to delete chat:", error);
+      return false;
+    }
+  };
+
+  const getChatHistory = async (
+    chatId: string
+  ): Promise<ChatHistory | null> => {
+    try {
+      return await chatStore.getChatHistory(chatId);
+    } catch (error) {
+      console.error("Failed to get chat history:", error);
+      return null;
+    }
+  };
+
+  const addMessage = async (
+    chatId: string,
+    contents: string,
+    type: "message" | "response"
+  ): Promise<boolean> => {
+    try {
+      await chatStore.addMessageToChat(chatId, {
+        contents,
+        type,
+        date: new Date().toISOString(),
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to add message:", error);
+      return false;
+    }
+  };
+
+  return {
+    isInitialized,
+    chats,
+    createChat,
+    deleteChat,
+    getChatHistory,
+    addMessage,
+    loadChats,
+  };
+};

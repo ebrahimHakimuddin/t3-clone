@@ -1,0 +1,239 @@
+interface Chat {
+  chatId: string;
+  chatName: string;
+  authorId: string;
+  _creationTime: number;
+}
+
+interface ChatMessage {
+  contents: string;
+  type: "message" | "response";
+  date: string;
+}
+
+interface ChatHistory {
+  chatId: string;
+  body: ChatMessage[];
+}
+
+class IndexedDBChatStore {
+  private dbName = "ChatStore";
+  private version = 2; // Increment version for schema change
+  private db: IDBDatabase | null = null;
+
+  async init(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+
+        // Create chats store
+        if (!db.objectStoreNames.contains("chats")) {
+          const chatStore = db.createObjectStore("chats", { keyPath: "chatId" });
+          chatStore.createIndex("authorId", "authorId", { unique: false });
+          chatStore.createIndex("_creationTime", "_creationTime", { unique: false });
+        } else {
+          // Handle existing store upgrade
+          const transaction = (event.target as IDBOpenDBRequest).transaction!;
+          const chatStore = transaction.objectStore("chats");
+
+          // Add index for _creationTime if it doesn't exist
+          if (!chatStore.indexNames.contains("_creationTime")) {
+            chatStore.createIndex("_creationTime", "_creationTime", { unique: false });
+          }
+        }
+
+        // Create chat history store
+        if (!db.objectStoreNames.contains("chatHistory")) {
+          const historyStore = db.createObjectStore("chatHistory", { keyPath: "chatId" });
+        }
+      };
+    });
+  }
+
+  // Chat operations
+  async createChat(chat: Chat): Promise<void> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chats"], "readwrite");
+      const store = transaction.objectStore("chats");
+      const request = store.add(chat);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async getChat(chatId: string): Promise<Chat | null> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chats"], "readonly");
+      const store = transaction.objectStore("chats");
+      const request = store.get(chatId);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result || null);
+    });
+  }
+
+  async getAllChats(): Promise<Chat[]> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chats"], "readonly");
+      const store = transaction.objectStore("chats");
+      const request = store.getAll();
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+
+  async getChatsByAuthor(authorId: string): Promise<Chat[]> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chats"], "readonly");
+      const store = transaction.objectStore("chats");
+      const index = store.index("authorId");
+      const request = index.getAll(authorId);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+
+  async getChatsByCreationTime(): Promise<Chat[]> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chats"], "readonly");
+      const store = transaction.objectStore("chats");
+      const index = store.index("_creationTime");
+      const request = index.getAll();
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+
+  async deleteChat(chatId: string): Promise<void> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chats", "chatHistory"], "readwrite");
+
+      // Delete chat
+      const chatStore = transaction.objectStore("chats");
+      const chatRequest = chatStore.delete(chatId);
+
+      // Delete chat history
+      const historyStore = transaction.objectStore("chatHistory");
+      const historyRequest = historyStore.delete(chatId);
+
+      transaction.onerror = () => reject(transaction.error);
+      transaction.oncomplete = () => resolve();
+    });
+  }
+
+  // Chat history operations
+  async saveChatHistory(chatHistory: ChatHistory): Promise<void> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chatHistory"], "readwrite");
+      const store = transaction.objectStore("chatHistory");
+      const request = store.put(chatHistory);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async getChatHistory(chatId: string): Promise<ChatHistory | null> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chatHistory"], "readonly");
+      const store = transaction.objectStore("chatHistory");
+      const request = store.get(chatId);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result || null);
+    });
+  }
+
+  async addMessageToChat(chatId: string, message: ChatMessage): Promise<void> {
+    const history = await this.getChatHistory(chatId);
+
+    if (history) {
+      history.body.push(message);
+      await this.saveChatHistory(history);
+    } else {
+      await this.saveChatHistory({
+        chatId,
+        body: [message]
+      });
+    }
+  }
+
+  async clearAllData(): Promise<void> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["chats", "chatHistory"], "readwrite");
+
+      const chatStore = transaction.objectStore("chats");
+      const historyStore = transaction.objectStore("chatHistory");
+
+      chatStore.clear();
+      historyStore.clear();
+
+      transaction.onerror = () => reject(transaction.error);
+      transaction.oncomplete = () => resolve();
+    });
+  }
+}
+
+// Export singleton instance
+export const chatStore = new IndexedDBChatStore();
+
+// Helper functions
+export const initializeChatStore = async (): Promise<void> => {
+  await chatStore.init();
+};
+
+export const createNewChat = async (chatName: string, authorId: string): Promise<string> => {
+  const chatId = crypto.randomUUID();
+  const now = new Date();
+  const chat: Chat = {
+    chatId,
+    chatName,
+    authorId,
+    _creationTime: now.getTime()
+  };
+
+  await chatStore.createChat(chat);
+  return chatId;
+};
+
+export const addMessage = async (chatId: string, contents: string, type: "message" | "response"): Promise<void> => {
+  const message: ChatMessage = {
+    contents,
+    type,
+    date: new Date().toISOString()
+  };
+
+  await chatStore.addMessageToChat(chatId, message);
+};
+
+export { type Chat, type ChatHistory, type ChatMessage };
