@@ -152,6 +152,7 @@ export default function AppSidebar() {
                       <SidebarMenuButton
                         isActive={item.url === path}
                         asChild
+                        className="line-clamp-1"
                         onClick={() => {
                           if (isMobile) setOpenMobile(false);
                         }}
