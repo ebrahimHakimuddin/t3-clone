@@ -200,6 +200,7 @@ export default function Chat() {
     } catch (error) {
       console.error("Error generating response:", error);
     } finally {
+      setMessage("");
       setIsGenerating(false);
     }
   };
