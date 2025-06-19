@@ -177,7 +177,7 @@ export default function Chat() {
     if (message.trim() === "" || params.chatId === "" || isGenerating) return;
 
     const currentMessage = message.trim();
-    setMessage("");
+    // setMessage("");
     setIsGenerating(true);
 
     try {
