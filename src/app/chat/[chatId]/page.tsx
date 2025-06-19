@@ -22,6 +22,7 @@ import remarkGfm from "remark-gfm";
 
 const AVAILABLE_MODELS = [
   { id: "gemini-2.5-flash", name: "Gemini - 2.5 Flash" },
+  { id: "gemini-2.0-flash", name: "Gemini - 2.0 Flash" },
 ];
 
 export default function Chat() {
@@ -180,19 +181,20 @@ export default function Chat() {
     setIsGenerating(true);
 
     try {
-      await newMessage({
+      const message = await newMessage({
         chatId: params.chatId,
         message: currentMessage,
       });
+      if (message) {
+        const { output } = await generate(message.body, selectedModel.id);
 
-      const { output } = await generate(currentMessage);
-
-      for await (const delta of readStreamableValue(output)) {
-        if (delta) {
-          updateChat({
-            chatId: params.chatId,
-            delta: delta,
-          });
+        for await (const delta of readStreamableValue(output)) {
+          if (delta) {
+            updateChat({
+              chatId: params.chatId,
+              delta: delta,
+            });
+          }
         }
       }
     } catch (error) {
@@ -217,12 +219,12 @@ export default function Chat() {
             <div
               key={index}
               className={`flex ${
-                chat.type === "message" ? "justify-end" : "justify-start"
+                chat.role === "user" ? "justify-end" : "justify-start"
               } animate-in slide-in-from-bottom-2 duration-300`}
             >
               <div
                 className={`max-w-[85%] md:max-w-[90%] p-4 mb-4 rounded-lg transition-all duration-200 relative group ${
-                  chat.type === "message"
+                  chat.role === "user"
                     ? "bg-gradient-to-br from-[#F4DAEE] to-[#E8C6D9] ml-auto shadow-sm"
                     : "bg-white shadow-md border border-gray-200 mr-auto hover:shadow-lg"
                 }`}
@@ -232,7 +234,7 @@ export default function Chat() {
                     components={markdownComponents}
                     remarkPlugins={[remarkGfm]}
                   >
-                    {chat.contents}
+                    {chat.content}
                   </Markdown>
                 </div>
                 <div className="flex items-center justify-between mt-3">
@@ -242,9 +244,9 @@ export default function Chat() {
                       minute: "2-digit",
                     })}
                   </span>
-                  {chat.type === "response" && (
+                  {chat.role === "assistant" && (
                     <button
-                      onClick={() => handleCopy(chat.contents, index)}
+                      onClick={() => handleCopy(chat.content, index)}
                       className="opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 hover:bg-gray-200 p-1.5 rounded text-gray-600 hover:text-gray-800"
                       title="Copy message"
                     >

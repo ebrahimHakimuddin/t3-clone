@@ -10,8 +10,8 @@ export default defineSchema({
     chatHistory: defineTable({
         chatId: v.id("chats"),
         body: v.array(v.object({
-            contents: v.string(),
-            type: v.union(v.literal("message"), v.literal("response"), v.literal("system")),
+            content: v.string(),
+            role: v.union(v.literal("user"), v.literal("assistant")),
             date: v.string(),
         })),
     }).index("by_chatId", ["chatId"])

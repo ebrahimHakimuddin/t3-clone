@@ -5,13 +5,18 @@ import { createStreamableValue } from 'ai/rsc';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 const google = createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_API_KEY })
 
-export async function generate(input: string) {
+export async function generate(messages: Array<{
+    role: "user" | "assistant",
+    content: string,
+    date: string
+}>, model: string
+) {
     const stream = createStreamableValue('');
 
     (async () => {
         const { textStream } = streamText({
-            model: google('gemini-2.5-flash'),
-            prompt: input,
+            model: google(model),
+            messages: messages
         });
 
         for await (const delta of textStream) {

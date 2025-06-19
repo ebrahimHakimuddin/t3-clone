@@ -1,6 +1,6 @@
 "use client";
 import { Textarea } from "@/components/ui/textarea";
-import { MoveUp, ArrowDown, Loader2 } from "lucide-react";
+import { MoveUp, ArrowDown, Loader2, LogIn } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -10,16 +10,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
-import { useConvexAuth, useMutation } from "convex/react";
+import { Unauthenticated, useConvexAuth, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useRouter } from "next/navigation";
 
 import { readStreamableValue } from "ai/rsc";
 import { generate, generateChatName } from "@/models/models";
+import { SignInButton } from "@clerk/nextjs";
 
 // Define available models
 const AVAILABLE_MODELS = [
   { id: "gemini-2.5-flash", name: "Gemini - 2.5 Flash" },
+  { id: "gemini-2.0-flash", name: "Gemini - 2.0 Flash" },
 ];
 
 export default function Chat() {
@@ -57,15 +59,22 @@ export default function Chat() {
         chatId: id,
         chatHistory: [
           {
-            contents: currentMessage,
-            type: "message",
+            content: currentMessage,
+            role: "user",
             date: new Date().toISOString(),
           },
         ],
         chatName: name,
       });
 
-      const { output } = await generate(currentMessage);
+      const { output } = await generate([
+        {
+          content: currentMessage,
+          role: "user",
+          date: new Date().toISOString(),
+        },
+
+      ], selectedModel.id);
 
       for await (const delta of readStreamableValue(output)) {
         updateChat({
@@ -89,7 +98,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex justify-center w-full h-full relative">
+    <div className="flex justify-center max-h-dvh w-full h-full relative">
       <div className="w-full max-w-3xl flex flex-col h-screen relative">
         {/* Welcome section with centered content */}
         <div className="flex-1 flex items-center justify-center p-4">
@@ -102,11 +111,22 @@ export default function Chat() {
               chat!
             </p>
             {!isAuthenticated && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                <p className="text-yellow-800">
-                  Please sign in to start chatting with AI
-                </p>
-              </div>
+              <>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <p className="text-yellow-800">
+                    Please sign in to start chatting with AI
+                  </p>
+                </div>
+                <Unauthenticated>
+                  <SignInButton>
+                    <div className="flex-1 hover:bg-accent rounded-lg">
+                      <div className="flex justify-center bg-[#FAF3FA] rounded-lg hover:cursor-pointer items-center gap-2 h-10">
+                        Login <LogIn className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </SignInButton>
+                </Unauthenticated>
+              </>
             )}
           </div>
         </div>

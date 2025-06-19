@@ -8,8 +8,8 @@ export const makeNewChat = mutation({
         chatId: v.string(),
         chatName: v.string(),
         chatHistory: v.array(v.object({
-            contents: v.string(),
-            type: v.union(v.literal("message"), v.literal("response")),
+            content: v.string(),
+            role: v.union(v.literal("user"), v.literal("assistant")),
             date: v.string(),
         })),
     },
@@ -72,19 +72,19 @@ export const updateChatResponse = mutation({
             if (!chatHistory) return
             const updatedBody = [...chatHistory.body];
             const date = new Date().toISOString()
-            if (!(updatedBody[updatedBody.length - 1].type === "response")) {
+            if (!(updatedBody[updatedBody.length - 1].role === "assistant")) {
                 updatedBody.push({
-                    contents: "",
+                    content: "",
                     date: date,
-                    type: "response"
+                    role: "assistant"
                 })
             }
             for (let i = updatedBody.length - 1; i >= 0; i--) {
-                if (updatedBody[i].type === "response") {
-                    // Update the contents of the most recent response
+                if (updatedBody[i].role === "assistant") {
+                    // Update the contentscontents of the most recent response
                     updatedBody[i] = {
                         ...updatedBody[i],
-                        contents: updatedBody[i].contents + args.delta
+                        content: updatedBody[i].content + args.delta
                     };
                     break;
                 }
@@ -113,8 +113,8 @@ export const updateChatMessage = mutation({
             if (!chatHistory) return
 
             const newMessage = {
-                contents: args.message,
-                type: "message" as const,
+                content: args.message,
+                role: "user" as const,
                 date: new Date().toISOString()
             };
 
@@ -124,7 +124,7 @@ export const updateChatMessage = mutation({
                 body: updatedBody
             });
 
-            return "Message added successfully";
+            return ctx.db.get(chatHistory._id);
         } catch (e) {
             return ""
         }
